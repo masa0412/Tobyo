@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ビデオポーカー</title>
+    <style>
+        @font-face {
+            font-family: 'So-Ei Kaku Pop';
+            src: url('path-to-soei-kaku-pop-font.woff') format('woff');
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #006400;
+            color: white;
+            text-align: center;
+        }
+
+        .title {
+            font-family: 'So-Ei Kaku Pop', sans-serif;
+            font-size: 24px;
+            color: yellow;
+            margin-top: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            background-color: #2e8b57;
+            border-radius: 8px;
+        }
+
+        .card-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .card {
+            width: 80px;
+            height: 120px;
+            margin: 0 5px;
+            background-color: white;
+            color: black;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .links {
+            margin-top: 20px;
+            text-align: left;
+            padding: 0 20px;
+        }
+
+        .links a {
+            color: lightyellow;
+            text-decoration: none;
+            display: block;
+            padding: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">統合失調症トランピィの闘病生活</div>
+
+    <div class="container">
+        <h1>ビデオポーカー</h1>
+        <div id="coins">コイン: <span id="coinCount">100</span></div>
+        <div id="attempts">試行回数: <span id="attemptCount">0</span></div>
+        <div id="hand" class="card-container"></div>
+        <button onclick="drawCards()">カードを引く</button>
+        <button onclick="exchangeCards()">交換</button>
+        <button onclick="evaluateHand()">役判定</button>
+        <div id="result"></div>
+    </div>
+
+    <div class="links">
+        <h2>記事リスト</h2>
+        <a href="#link1">自己紹介動画</a>
+        <a href="#link2">統合失調症って何？</a>
+        <a href="#link3">クリベッジのルール</a>
+        <!-- Add more links as needed -->
+    </div>
+    <script>
+        let coins = 100;
+        let hand = [];
+        let selectedCards = [];
+        let exchangeUsed = false;
+        let attempts = 0;
+        const suits = ["♠", "♥", "♦", "♣"];
+        const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+
+        // カードを生成する関数
+        function createCard() {
+            const suit = suits[Math.floor(Math.random() * suits.length)];
+            const value = values[Math.floor(Math.random() * values.length)];
+            return { suit, value };
+        }
+
+        // 5枚のカードを引く関数
+        function drawCards() {
+            hand = [];
+            selectedCards = [];
+            exchangeUsed = false;
+            const handContainer = document.getElementById("hand");
+            handContainer.innerHTML = ""; // 前の手札を消去
+
+            for (let i = 0; i < 5; i++) {
+                const card = createCard();
+                hand.push(card);
+
+                const cardDiv = document.createElement("div");
+                cardDiv.classList.add("card");
+                cardDiv.textContent = `${card.value}${card.suit}`;
+                cardDiv.onclick = () => toggleSelectCard(i);
+                handContainer.appendChild(cardDiv);
+            }
+
+            document.getElementById("result").textContent = "";
+            attempts++;
+            document.getElementById("attemptCount").textContent = attempts;
+        }
+
+        // カードの選択を切り替える
+        function toggleSelectCard(index) {
+            if (exchangeUsed) return;
+            const cardDivs = document.getElementsByClassName("card");
+            if (selectedCards.includes(index)) {
+                selectedCards = selectedCards.filter(i => i !== index);
+                cardDivs[index].style.border = "";
+            } else {
+                selectedCards.push(index);
+                cardDivs[index].style.border = "2px solid red";
+            }
+        }
+
+        // 選択したカードを交換する関数
+        function exchangeCards() {
+            if (exchangeUsed || selectedCards.length === 0) return;
+            const handContainer = document.getElementById("hand");
+
+            selectedCards.forEach(index => {
+                const newCard = createCard();
+                hand[index] = newCard;
+                handContainer.children[index].textContent = `${newCard.value}${newCard.suit}`;
+                handContainer.children[index].style.border = ""; // Remove border after exchange
+            });
+
+            selectedCards = [];
+            exchangeUsed = true;
+        }
+
+        // 手札の役を判定し、コインを増減する関数
+        function evaluateHand() {
+            let result = "役なし";
+            let payout = -3;  // 役なしの場合は3コイン減少
+
+            // カウント用オブジェクトを作成
+            const valueCount = {};
+            for (const card of hand) {
+                valueCount[card.value] = (valueCount[card.value] || 0) + 1;
+            }
+
+            const pairs = Object.values(valueCount).filter(count => count === 2).length;
+            const threes = Object.values(valueCount).filter(count => count === 3).length;
+            const fours = Object.values(valueCount).filter(count => count === 4).length;
+
+            // 役の判定
+            if (fours === 1) {
+                result = "フォーカード";
+                payout = 75;
+            } else if (threes === 1 && pairs === 1) {
+                result = "フルハウス";
+                payout = 21;
+            } else if (Object.keys(valueCount).length === 5 && isStraight()) {
+                result = "ストレート";
+                payout = 12;
+            } else if (isFlush()) {
+                result = "フラッシュ";
+                payout = 18;
+            } else if (threes === 1) {
+                result = "スリーカード";
+                payout = 9;
+            } else if (pairs === 2) {
+                result = "ツーペア";
+                payout = 6;
+            } else if (pairs === 1 && hasJacksOrBetter()) {
+                result = "ジャックスオアベター";
+                payout = 3;
+            }
+
+            // コインの増減
+            coins += payout;
+            document.getElementById("coinCount").textContent = coins;
+            document.getElementById("result").textContent = `${result}！ ${payout > 0 ? "+" : ""}${payout}コイン`;
+        }
+
+        // ストレートの判定
+        function isStraight() {
+            const sortedValues = hand.map(card => values.indexOf(card.value)).sort((a, b) => a - b);
+            for (let i = 1; i < sortedValues.length; i++) {
+                if (sortedValues[i] !== sortedValues[i - 1] + 1) return false;
+            }
+            return true;
+        }
+
+        // フラッシュの判定
+        function isFlush() {
+            return hand.every(card => card.suit === hand[0].suit);
+        }
+
+        // Jacks or Betterの判定
+        function hasJacksOrBetter() {
+            return hand.some(card => ["J", "Q", "K", "A"].includes(card.value) && hand.filter(c => c.value === card.value).length === 2);
+        }
+    </script>
+</body>
+</html>
